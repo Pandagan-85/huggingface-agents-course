@@ -1,0 +1,24 @@
+
+📊 REPORT DATASET ALFRED
+========================
+
+📈 STATISTICHE:
+- Ospiti totali: 3
+- Campi originali: 4
+- Campi arricchiti: 8
+
+👥 OSPITI NEL DATABASE:
+• Ada Lovelace (best friend)
+• Dr. Nikola Tesla (old friend from university days)
+• Marie Curie (no relation)
+
+🎯 ARRICCHIMENTI AGGIUNTI:
+- Interessi estratti automaticamente
+- Topics di conversazione identificati  
+- Conversation starters personalizzati
+- Metadati per ricerca semantica
+
+📁 FILE GENERATI:
+- ./data/original_guests.csv - Dataset originale
+- ./data/enhanced_guests.csv - Dataset arricchito
+- ./data/dataset_report.txt - Questo report
