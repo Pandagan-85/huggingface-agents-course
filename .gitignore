@@ -6,6 +6,6 @@ __pycache__/
 # Ignore Jupyter Notebook checkpoints
 .ipynb_checkpoints/
 
-
+venv_clean/
 # Ignore MacOS system files
 .DS_Store

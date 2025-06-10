@@ -1,5 +1,6 @@
 from memory import alfred_memory
 from retriever import get_guest_info_tool, ensure_guest_data, get_vector_store
+from tools import get_all_tools  # ← IMPORTA TUTTI I TOOLS INCLUSO WEATHER
 from typing import TypedDict, Annotated
 from langgraph.graph.message import add_messages
 from langchain_core.messages import AnyMessage, HumanMessage, AIMessage, SystemMessage
@@ -17,8 +18,6 @@ load_dotenv()
 # Sopprimi warnings deprecation di LangChain
 warnings.filterwarnings(
     "ignore", category=DeprecationWarning, module="langchain")
-
-# Import dei nostri moduli
 
 
 def preload_all_systems():
@@ -41,11 +40,16 @@ def preload_all_systems():
 
         # 3. Pre-carica tools
         print("🔧 Pre-caricamento tools...")
-        guest_tool = get_guest_info_tool(use_semantic=True)
-        print("✅ Tools pronti")
+        all_tools = get_all_tools()  # ← CARICA TUTTI I TOOLS
+        print(f"✅ Tools pronti: {len(all_tools)} tools disponibili")
+
+        # Mostra quali tools sono disponibili
+        tool_names = [tool.name for tool in all_tools]
+        print(f"🛠️ Tools attivi: {', '.join(tool_names)}")
 
         # 4. Test rapido del sistema
         print("🧪 Test sistema...")
+        guest_tool = get_guest_info_tool(use_semantic=True)
         test_result = guest_tool.invoke({"query": "Ada"})
         if "❌" not in test_result and "Nessun" not in test_result:
             print("✅ Sistema funzionante")
@@ -63,17 +67,9 @@ def preload_all_systems():
 
 def create_agent_with_memory(use_semantic=True):
     """
-    Crea l'agente Alfred con memoria conversazionale e sistemi pre-caricati.
+    Crea l'agente Alfred con memoria conversazionale e TUTTI i tools.
     """
     print("🎩 Inizializzazione Alfred - Assistente Sofisticato")
-
-    # Il pre-caricamento è già stato fatto, usa i sistemi esistenti
-    guest_info_tool = get_guest_info_tool(use_semantic)
-
-    if use_semantic:
-        print("🧠 Usando retriever semantico ottimizzato...")
-    else:
-        print("📝 Usando retriever base...")
 
     # Configura l'LLM
     print("🔗 Connessione a HuggingFace...")
@@ -85,7 +81,11 @@ def create_agent_with_memory(use_semantic=True):
     )
 
     chat = ChatHuggingFace(llm=llm, verbose=False)
-    tools = [guest_info_tool]
+
+    # ← QUESTO È IL PUNTO CHIAVE: USA TUTTI I TOOLS
+    tools = get_all_tools()  # Ora include: guest_info, web_search, combined_search, weather
+    print(f"🛠️ Tools configurati: {[tool.name for tool in tools]}")
+
     chat_with_tools = chat.bind_tools(tools)
     print("✅ LLM configurato!")
 
@@ -112,8 +112,12 @@ def create_agent_with_memory(use_semantic=True):
 Contesto della conversazione precedente:
 {memory_context}
 
-Usa questo contesto per fornire risposte più personalizzate e coerenti. 
-Se l'utente si riferisce a qualcosa menzionato prima, puoi fare riferimento a quella conversazione.
+Hai accesso a diversi strumenti:
+- Informazioni sugli ospiti del gala
+- Ricerca web per informazioni aggiornate  
+- Informazioni meteorologiche per pianificare l'evento
+
+Usa questi strumenti per fornire risposte complete e utili.
 Mantieni sempre un tono elegante e professionale.""")
             enhanced_messages.append(system_message)
 
@@ -145,7 +149,7 @@ Mantieni sempre un tono elegante e professionale.""")
 
     # Definisci i nodi
     builder.add_node("assistant", assistant)
-    builder.add_node("tools", ToolNode(tools))
+    builder.add_node("tools", ToolNode(tools))  # ← USA TUTTI I TOOLS
 
     # Definisci gli archi
     builder.add_edge(START, "assistant")
@@ -156,7 +160,7 @@ Mantieni sempre un tono elegante e professionale.""")
     builder.add_edge("tools", "assistant")
 
     alfred = builder.compile()
-    print("✅ Alfred pronto!")
+    print("✅ Alfred pronto con tutti i tools!")
 
     return alfred
 
@@ -177,7 +181,12 @@ def interactive_session():
     print("• 'quit' / 'exit' - Esci")
     print("• 'memory' - Mostra riassunto memoria")
     print("• 'stats' - Statistiche sessione")
-    print("💡 Prova: 'Tell me about Ada' o 'Who is good at mathematics?'")
+    print("• 'tools' - Mostra tools disponibili")
+    print("\n💡 Prova queste domande:")
+    print("  - 'Tell me about Ada Lovelace'")
+    print("  - 'What's the weather like in London?'")
+    print("  - 'Who is good at mathematics?'")
+    print("  - 'Should we have the reception outdoors?'")
     print("=" * 60)
 
     interaction_count = 0
@@ -203,6 +212,13 @@ def interactive_session():
                 f"  • Conversazioni in memoria: {len(alfred_memory.conversation_history)}")
             continue
 
+        if user_input.lower() == 'tools':
+            tools = get_all_tools()
+            print(f"🛠️ Tools disponibili ({len(tools)}):")
+            for i, tool in enumerate(tools, 1):
+                print(f"  {i}. {tool.name}: {tool.description}")
+            continue
+
         try:
             interaction_count += 1
             messages = [HumanMessage(content=user_input)]
@@ -225,9 +241,9 @@ def interactive_session():
             print(f"❌ Errore: {e}")
 
 
-def test_memory_features():
+def test_all_tools():
     """
-    Test specifici per le funzionalità di memoria con pre-caricamento.
+    Test di tutti i tools incluso weather.
     """
     # Pre-carica sistemi
     if not preload_all_systems():
@@ -236,15 +252,16 @@ def test_memory_features():
 
     alfred = create_agent_with_memory(use_semantic=True)
 
-    print("🧪 Test delle funzionalità di memoria:")
+    print("🧪 Test di tutti i tools:")
     print("=" * 60)
 
-    # Sequenza di test per dimostrare la memoria
+    # Sequenza di test per dimostrare tutti i tools
     test_sequence = [
-        "Tell me about Ada Lovelace with conversation starters.",
+        "Tell me about Ada Lovelace.",
+        "What's the weather like in London?",
         "Who else is good at mathematics?",
-        "What did we discuss about Ada before?",
-        "Give me conversation starters for the mathematician we talked about."
+        "Should we plan an outdoor reception based on the weather?",
+        "Search the web for information about Marie Curie's latest work."
     ]
 
     for i, query in enumerate(test_sequence, 1):
@@ -266,30 +283,24 @@ def test_memory_features():
             print(f"🎩 Alfred: {response['messages'][-1].content}")
             print(f"⏱️ Tempo: {response_time:.2f}s")
 
-            # Mostra lo stato della memoria dopo ogni interazione
-            if i > 1:
-                context = alfred_memory.get_relevant_context(query)
-                if context:
-                    print(f"\n💭 Contesto usato: {context[:150]}...")
-
         except Exception as e:
             print(f"❌ Errore: {e}")
 
         print("\n" + "=" * 60)
 
-    print("✅ Test memoria completati!")
+    print("✅ Test di tutti i tools completati!")
     print(f"📊 {alfred_memory.get_memory_summary()}")
 
 
 def main():
     """
-    Funzione principale ottimizzata con pre-caricamento.
+    Funzione principale ottimizzata con tutti i tools.
     """
-    print("🎩 Alfred - Assistente Gala Ottimizzato")
+    print("🎩 Alfred - Assistente Gala Completo")
     print("=" * 60)
     print("Scegli un'opzione:")
     print("1. Sessione interattiva (consigliato)")
-    print("2. Test funzionalità memoria")
+    print("2. Test di tutti i tools")
     print("3. Solo pre-caricamento sistemi")
     print("4. Export dataset CSV")
 
@@ -298,7 +309,7 @@ def main():
     if choice == "1":
         interactive_session()
     elif choice == "2":
-        test_memory_features()
+        test_all_tools()
     elif choice == "3":
         preload_all_systems()
         print("✅ Pre-caricamento completato!")
